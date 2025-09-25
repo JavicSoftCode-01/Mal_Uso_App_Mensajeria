@@ -205,9 +205,78 @@ python manage.py runserver
    - Configurar políticas de seguridad
    - Implementar backups regulares
 
-### Soporte
+### Sistema de Logging Implementado
 
-Para reportar problemas de seguridad:
-- No publicar en issues públicos
-- Contactar directamente al equipo de seguridad
-- Seguir política de divulgación responsable
+Se ha implementado un sistema de logging robusto con las siguientes características:
+
+#### Tipos de Logs
+1. **Security Log** (`security.log`):
+   - Eventos de seguridad críticos
+   - Intentos de acceso no autorizados
+   - Cambios en permisos
+
+2. **Authentication Log** (`auth.log`):
+   - Intentos de inicio de sesión
+   - Bloqueos de cuenta
+   - Cambios de contraseña
+
+3. **Django Log** (`django.log`):
+   - Logs generales del framework
+   - Peticiones HTTP
+   - Errores de aplicación
+
+4. **Error Log** (`error.log`):
+   - Errores críticos
+   - Excepciones no manejadas
+   - Problemas de configuración
+
+#### Configuración de Logging
+
+```python
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{levelname}] {asctime} {name} - {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '[{levelname}] {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'security_file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': 'logs/security.log',
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django.security': {
+            'handlers': ['security_file', 'mail_admins'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    }
+}
+```
+
+### Mejoras de Seguridad Implementadas
+
+1. **Sistema de Notificaciones**:
+   - Alertas por email para intentos de acceso sospechosos
+   - Notificaciones de actividades inusuales
+   - Reportes de seguridad automáticos
+
+2. **Control de Acceso Mejorado**:
+   - Bloqueo de cuenta después de intentos fallidos
+   - Validación de sesiones activas
+   - Control de acceso basado en roles
+
+3. **Monitoreo y Auditoría**:
+   - Registro detallado de todas las actividades
+   - Sistema de logs centralizado
+   - Alertas en tiempo real
