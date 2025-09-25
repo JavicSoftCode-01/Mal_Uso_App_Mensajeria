@@ -1,23 +1,117 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header">
-        <h2>Enviar Mensaje</h2>
-    </div>
-    <div class="card-body">
-        <form method="post">
-            {% csrf_token %}
-            <div class="mb-3">
-                <label for="receiver" class="form-label">Destinatario</label>
-                <input type="text" class="form-control" id="receiver" name="receiver" required>
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h3 class="mb-0">
+                        {% if receiver %}
+                            Chat con {{ receiver.username }}
+                        {% else %}
+                            Nuevo Mensaje
+                        {% endif %}
+                    </h3>
+                    <a href="{% url 'inbox' %}" class="btn btn-light btn-sm">Volver</a>
+                </div>
+                
+                {% if chat_history %}
+                <div class="card-body chat-history" style="max-height: 400px; overflow-y: auto;">
+                    {% for message in chat_history %}
+                    <div class="message {% if message.sender == request.user %}sent{% else %}received{% endif %} mb-2">
+                        <div class="message-content p-2 rounded">
+                            {{ message.content }}
+                        </div>
+                        <small class="text-muted">
+                            {{ message.created_at|date:"d/m/Y H:i" }}
+                        </small>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <div class="card-footer">
+                    <form method="post" class="message-form">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            {% if not receiver %}
+                            <div class="form-group mb-3">
+                                <label for="receiver" class="form-label">Destinatario</label>
+                                <input type="text" class="form-control" id="receiver" name="receiver" required>
+                            </div>
+                            {% else %}
+                            <input type="hidden" name="receiver" value="{{ receiver.username }}">
+                            {% endif %}
+                        </div>
+                        <div class="input-group">
+                            <textarea class="form-control" id="content" name="content" rows="2" required 
+                                    placeholder="Escribe tu mensaje..."></textarea>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
             </div>
-            <div class="mb-3">
-                <label for="content" class="form-label">Mensaje</label>
-                <textarea class="form-control" id="content" name="content" rows="3" required></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary">Enviar</button>
-        </form>
+        </div>
     </div>
 </div>
+
+<style>
+.chat-history {
+    padding: 1rem;
+    background: #f8f9fa;
+}
+
+.message {
+    max-width: 70%;
+    margin-bottom: 1rem;
+}
+
+.message.sent {
+    margin-left: auto;
+}
+
+.message.received {
+    margin-right: auto;
+}
+
+.message.sent .message-content {
+    background: #007bff;
+    color: white;
+    border-radius: 15px 15px 0 15px;
+}
+
+.message.received .message-content {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 15px 15px 15px 0;
+}
+
+.message small {
+    font-size: 0.75rem;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+.message-form {
+    background: white;
+    padding: 1rem;
+}
+
+.message-form .input-group {
+    border-radius: 25px;
+    overflow: hidden;
+}
+
+.message-form textarea {
+    border-radius: 25px 0 0 25px;
+    resize: none;
+}
+
+.message-form button {
+    border-radius: 0 25px 25px 0;
+}
+</style>
 {% endblock %}

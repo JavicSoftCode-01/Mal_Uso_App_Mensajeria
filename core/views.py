@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .models import Message, SecurityLog, AuthenticationAttempt
@@ -7,12 +7,19 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from django.views.decorators.http import require_http_methods
 from django.utils.html import escape
+from django.db.models import Q
 import json
 import bleach
 import logging
 from django.core.cache import cache
 from django.conf import settings
 from .auth_helpers import check_failed_attempts
+
+def get_chat_history(user1, user2):
+    """Obtiene el historial de chat entre dos usuarios."""
+    return Message.objects.filter(
+        (Q(sender=user1, receiver=user2) | Q(sender=user2, receiver=user1))
+    ).order_by('timestamp')
 
 def get_client_info(request):
     """Obtiene información detallada del cliente."""
@@ -73,24 +80,110 @@ def inbox(request):
             success=False
         )
         messages.error(request, 'Has excedido el límite de accesos. Por favor, espera un momento.')
-        return redirect('home')
+        return redirect('inbox')
 
-    messages_received = Message.objects.filter(receiver=request.user)
+    # Obtener chats únicos agrupados por usuario
+    chats = Message.objects.filter(
+        Q(sender=request.user) | Q(receiver=request.user)
+    ).order_by('-timestamp')
+    
+    # Crear una lista de chats únicos con el último mensaje
+    unique_chats = {}
+    for chat in chats:
+        other_user = chat.receiver if chat.sender == request.user else chat.sender
+        if other_user.id not in unique_chats:
+            unique_chats[other_user.id] = {
+                'user': other_user,
+                'last_message': chat,
+                'unread_count': Message.objects.filter(
+                    sender=other_user,
+                    receiver=request.user,
+                    is_read=False
+                ).count()
+            }
+    
     log_security_event(request, 'View Inbox')
     
     return render(request, 'core/inbox.html', {
-        'messages': messages_received
+        'chats': sorted(unique_chats.values(), key=lambda x: x['last_message'].timestamp, reverse=True)
+    })
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def chat_view(request, user_id):
+    """Vista de chat individual."""
+    other_user = get_object_or_404(User, id=user_id)
+    logger = logging.getLogger('security')
+    
+    if request.method == "POST":
+        content = bleach.clean(request.POST.get('content', ''))
+        
+        if not content:
+            messages.error(request, 'El mensaje no puede estar vacío.')
+            return redirect('chat', user_id=user_id)
+        
+        try:
+            Message.objects.create(
+                sender=request.user,
+                receiver=other_user,
+                content=content,
+                is_read=False
+            )
+            logger.info(
+                'Message sent in chat',
+                extra={
+                    'sender': request.user.username,
+                    'receiver': other_user.username,
+                    'ip': get_client_ip(request)
+                }
+            )
+            
+        except ValidationError as e:
+            messages.error(request, str(e))
+            logger.warning(
+                'Message validation failed',
+                extra={
+                    'error': str(e),
+                    'sender': request.user.username,
+                    'receiver': other_user.username
+                }
+            )
+            
+    # Marcar mensajes como leídos
+    Message.objects.filter(
+        sender=other_user,
+        receiver=request.user,
+        is_read=False
+    ).update(is_read=True)
+    
+    # Obtener historial de chat
+    chat_history = get_chat_history(request.user, other_user)
+    
+    return render(request, 'core/chat.html', {
+        'other_user': other_user,
+        'chat_history': chat_history,
     })
 
 @login_required
 @require_http_methods(["GET", "POST"])
 def send_message(request):
-    """Vista para enviar mensajes con validaciones de seguridad."""
+    """Vista para iniciar un nuevo chat o responder a uno existente."""
     logger = logging.getLogger('security')
+    context = {}
+    
+    # Verificar si es una respuesta a un mensaje existente
+    reply_to = request.GET.get('reply_to')
+    if reply_to:
+        try:
+            receiver = User.objects.get(username=reply_to)
+            context['receiver'] = receiver
+            context['chat_history'] = get_chat_history(request.user, receiver)
+        except User.DoesNotExist:
+            messages.error(request, 'El usuario especificado no existe.')
     
     if request.method == "POST":
         rate_limit_key = f'send_message_{request.user.id}_{get_client_ip(request)}'
-        if not check_rate_limit(rate_limit_key, 10, 60):  # 10 mensajes por minuto
+        if not check_rate_limit(rate_limit_key, 10, 60):
             logger.warning(
                 'Rate limit exceeded for message sending',
                 extra={
@@ -98,50 +191,27 @@ def send_message(request):
                     'user': request.user.username
                 }
             )
-            messages.error(
-                request,
-                'Has excedido el límite de mensajes permitidos por minuto. ' +
-                'Por favor, espera un momento antes de intentar nuevamente.'
-            )
+            messages.error(request, 'Has excedido el límite de mensajes. Por favor, espera un momento.')
             return redirect('inbox')
 
         receiver_username = bleach.clean(request.POST.get('receiver', ''))
         content = bleach.clean(request.POST.get('content', ''))
 
         if not content or not receiver_username:
-            logger.warning(
-                'Attempt to send message with missing fields',
-                extra={
-                    'ip': get_client_ip(request),
-                    'user': request.user.username
-                }
-            )
-            messages.error(
-                request,
-                'Error: Debes completar tanto el destinatario como el contenido del mensaje.'
-            )
+            logger.warning('Attempt to send message with missing fields',
+                         extra={'user': request.user.username})
+            messages.error(request, 'Todos los campos son requeridos.')
             return redirect('send_message')
             
-        # Validación de auto-mensaje
         if receiver_username.lower() == request.user.username.lower():
-            logger.warning(
-                'Attempt to send message to self',
-                extra={
-                    'ip': get_client_ip(request),
-                    'user': request.user.username
-                }
-            )
-            messages.error(
-                request,
-                'Error de seguridad: No está permitido enviarse mensajes a uno mismo. ' +
-                'Esta acción ha sido registrada.'
-            )
+            logger.warning('Attempt to send message to self',
+                         extra={'user': request.user.username})
+            messages.error(request, 'No puedes enviarte mensajes a ti mismo.')
             return redirect('send_message')
 
         try:
             receiver = User.objects.get(username=receiver_username)
             
-            # Validaciones adicionales
             if len(content) > 5000:
                 raise ValidationError("El mensaje excede el límite permitido")
 
@@ -149,50 +219,28 @@ def send_message(request):
                 sender=request.user,
                 receiver=receiver,
                 content=content,
-                metadata={
-                    'client_info': get_client_info(request),
-                    'content_length': len(content),
-                    'sent_timestamp': timezone.now().isoformat()
-                }
+                is_read=False
             )
 
-            log_security_event(
-                request,
-                f'Message Sent',
-                details={'receiver': receiver_username, 'message_id': message.id}
-            )
+            logger.info('Message sent successfully',
+                       extra={'sender': request.user.username,
+                             'receiver': receiver_username})
             
-            messages.success(request, 'Mensaje enviado correctamente.')
-            return redirect('inbox')
+            return redirect('chat', user_id=receiver.id)
 
         except User.DoesNotExist:
-            log_security_event(
-                request,
-                'Invalid Recipient',
-                severity='WARN',
-                success=False,
-                details={'attempted_username': receiver_username}
-            )
-            messages.error(request, 'Usuario destinatario no existe.')
+            logger.warning('Invalid recipient',
+                         extra={'attempted_username': receiver_username})
+            messages.error(request, 'El usuario destinatario no existe.')
         
         except ValidationError as e:
-            log_security_event(
-                request,
-                'Message Validation Failed',
-                severity='WARN',
-                success=False,
-                details={'error': str(e)}
-            )
+            logger.warning('Message validation failed',
+                         extra={'error': str(e)})
             messages.error(request, str(e))
         
         except Exception as e:
-            log_security_event(
-                request,
-                'Message Send Error',
-                severity='ERROR',
-                success=False,
-                details={'error': str(e)}
-            )
+            logger.error('Unexpected error sending message',
+                        extra={'error': str(e)})
             messages.error(request, 'Error al enviar el mensaje. Por favor, intenta de nuevo.')
     
-    return render(request, 'core/send_message.html')
+    return render(request, 'core/send_message.html', context)

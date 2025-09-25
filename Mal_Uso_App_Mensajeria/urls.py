@@ -22,6 +22,7 @@ from core import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.inbox, name='inbox'),
+    path('chat/<int:user_id>/', views.chat_view, name='chat'),
     path('send/', views.send_message, name='send_message'),
     path('login/', auth_views.LoginView.as_view(template_name='core/login.html'), name='login'),
     path('logout/', auth_views.LogoutView.as_view(next_page='login'), name='logout'),

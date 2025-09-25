@@ -1,26 +1,150 @@
 {% extends 'core/base.html' %}
 
 {% block content %}
-<div class="card">
-    <div class="card-header">
-        <h2>Bandeja de entrada</h2>
+<div class="chats-container">
+    <div class="chats-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h4 class="mb-0">
+                <i class="fas fa-comments me-2"></i>Chats
+            </h4>
+            <a href="{% url 'send_message' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Nuevo Chat
+            </a>
+        </div>
     </div>
-    <div class="card-body">
-        {% if messages %}
-            <div class="list-group">
-                {% for message in messages %}
-                    <div class="list-group-item {% if not message.is_read %}list-group-item-primary{% endif %}">
-                        <div class="d-flex w-100 justify-content-between">
-                            <h5 class="mb-1">De: {{ message.sender.username }}</h5>
-                            <small>{{ message.timestamp|date:"d/m/Y H:i" }}</small>
-                        </div>
-                        <p class="mb-1">{{ message.content }}</p>
+
+    <div class="chats-list">
+        {% if chats %}
+            {% for chat in chats %}
+                <a href="{% url 'chat' user_id=chat.user.id %}" class="chat-item {% if chat.unread_count > 0 %}unread{% endif %}">
+                    <div class="chat-avatar">
+                        <i class="fas fa-user-circle fa-2x"></i>
                     </div>
-                {% endfor %}
-            </div>
+                    <div class="chat-content">
+                        <div class="chat-header">
+                            <h6 class="mb-0">{{ chat.user.username }}</h6>
+                            <small class="text-muted">
+                                {{ chat.last_message.timestamp|date:"H:i" }}
+                            </small>
+                        </div>
+                        <div class="chat-preview">
+                            <p class="mb-0 text-truncate">
+                                {% if chat.last_message.sender == request.user %}
+                                    <i class="fas fa-reply text-muted me-1"></i>
+                                {% endif %}
+                                {{ chat.last_message.content }}
+                            </p>
+                            {% if chat.unread_count > 0 %}
+                                <span class="badge bg-primary rounded-pill">{{ chat.unread_count }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </a>
+            {% endfor %}
         {% else %}
-            <p class="text-muted">No hay mensajes en tu bandeja de entrada.</p>
+            <div class="text-center py-5">
+                <i class="fas fa-comments fa-3x text-muted mb-3"></i>
+                <p class="text-muted">No hay chats activos.</p>
+                <a href="{% url 'send_message' %}" class="btn btn-primary">
+                    Iniciar un nuevo chat
+                </a>
+            </div>
         {% endif %}
     </div>
 </div>
+
+<style>
+.chats-container {
+    height: calc(100vh - 70px);
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+}
+
+.chats-header {
+    padding: 20px;
+    border-bottom: 1px solid #dee2e6;
+    background-color: #f8f9fa;
+}
+
+.chats-list {
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.chat-item {
+    display: flex;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #dee2e6;
+    text-decoration: none;
+    color: inherit;
+    transition: background-color 0.2s;
+}
+
+.chat-item:hover {
+    background-color: #f8f9fa;
+    text-decoration: none;
+    color: inherit;
+}
+
+.chat-item.unread {
+    background-color: #f0f7ff;
+}
+
+.chat-avatar {
+    margin-right: 15px;
+    color: #6c757d;
+}
+
+.chat-content {
+    flex-grow: 1;
+    min-width: 0; /* Permite que text-truncate funcione */
+}
+
+.chat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.chat-preview {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.chat-preview p {
+    color: #6c757d;
+    flex-grow: 1;
+    margin-right: 10px;
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.25em 0.6em;
+}
+
+.unread-message {
+    background-color: #f8f9fa;
+    border-left: 4px solid #0d6efd;
+}
+.message-content {
+    margin: 10px 0;
+    white-space: pre-wrap;
+}
+.message-metadata {
+    font-size: 0.85rem;
+}
+.message-actions {
+    min-width: 100px;
+}
+.list-group-item {
+    transition: background-color 0.3s;
+}
+.list-group-item:hover {
+    background-color: #f8f9fa;
+}
+</style>
 {% endblock %}
