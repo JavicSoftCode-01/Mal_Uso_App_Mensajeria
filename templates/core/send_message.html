@@ -1,0 +1,23 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Enviar Mensaje</h2>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="receiver" class="form-label">Destinatario</label>
+                <input type="text" class="form-control" id="receiver" name="receiver" required>
+            </div>
+            <div class="mb-3">
+                <label for="content" class="form-label">Mensaje</label>
+                <textarea class="form-control" id="content" name="content" rows="3" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary">Enviar</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

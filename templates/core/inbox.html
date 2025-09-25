@@ -1,0 +1,26 @@
+{% extends 'core/base.html' %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h2>Bandeja de entrada</h2>
+    </div>
+    <div class="card-body">
+        {% if messages %}
+            <div class="list-group">
+                {% for message in messages %}
+                    <div class="list-group-item {% if not message.is_read %}list-group-item-primary{% endif %}">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h5 class="mb-1">De: {{ message.sender.username }}</h5>
+                            <small>{{ message.timestamp|date:"d/m/Y H:i" }}</small>
+                        </div>
+                        <p class="mb-1">{{ message.content }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-muted">No hay mensajes en tu bandeja de entrada.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
