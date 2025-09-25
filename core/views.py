@@ -198,14 +198,28 @@ def send_message(request):
         content = bleach.clean(request.POST.get('content', ''))
 
         if not content or not receiver_username:
-            logger.warning('Attempt to send message with missing fields',
-                         extra={'user': request.user.username})
+            logger.warning(
+                'Campos incompletos en envío de mensaje',
+                extra={
+                    'extra': json.dumps({
+                        'user': request.user.username,
+                        'ip': get_client_ip(request)
+                    })
+                }
+            )
             messages.error(request, 'Todos los campos son requeridos.')
             return redirect('send_message')
             
         if receiver_username.lower() == request.user.username.lower():
-            logger.warning('Attempt to send message to self',
-                         extra={'user': request.user.username})
+            logger.warning(
+                'Intento de auto-mensaje detectado',
+                extra={
+                    'extra': json.dumps({
+                        'user': request.user.username,
+                        'ip': get_client_ip(request)
+                    })
+                }
+            )
             messages.error(request, 'No puedes enviarte mensajes a ti mismo.')
             return redirect('send_message')
 
@@ -222,10 +236,16 @@ def send_message(request):
                 is_read=False
             )
 
-            logger.info('Message sent successfully',
-                       extra={'sender': request.user.username,
-                             'receiver': receiver_username})
-            
+            logger.info(
+                'Mensaje enviado correctamente',
+                extra={
+                    'extra': json.dumps({
+                        'sender': request.user.username,
+                        'receiver': receiver_username,
+                        'message_id': message.id
+                    })
+                }
+            )
             return redirect('chat', user_id=receiver.id)
 
         except User.DoesNotExist:

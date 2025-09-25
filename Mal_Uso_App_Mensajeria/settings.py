@@ -187,6 +187,7 @@ EMAIL_PORT = int(os.getenv('EMAIL_PORT', 587))
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'True') == 'True'
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+ADMIN_EMAIL = os.getenv('ADMIN_EMAIL')
 
 # Logging Configuration
 LOGGING = {
@@ -194,49 +195,99 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} {message}',
+            'format': '[{levelname}] {asctime} {name} - {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '[{levelname}] {message}',
             'style': '{',
         },
         'security': {
-            'format': '{levelname} {asctime} {message} - IP: {ip} - User: {user}',
+            'format': '[{levelname}] {asctime} - {message}',
             'style': '{',
+        },
+        'django.server': {
+            'format': '[{levelname}] {asctime} - {message}',
+            'style': '{',
+        }
+    },
+    'filters': {
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse',
         },
     },
     'handlers': {
+        'console': {
+            'level': 'INFO',
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'django_file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'django.log'),
+            'formatter': 'django.server',
+        },
         'security_file': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': 'logs/security.log',
+            'filename': os.path.join(BASE_DIR, 'logs', 'security.log'),
             'formatter': 'security',
         },
         'auth_file': {
             'level': 'INFO',
             'class': 'logging.FileHandler',
-            'filename': 'logs/auth.log',
+            'filename': os.path.join(BASE_DIR, 'logs', 'auth.log'),
             'formatter': 'verbose',
         },
         'error_file': {
             'level': 'ERROR',
             'class': 'logging.FileHandler',
-            'filename': 'logs/error.log',
+            'filename': os.path.join(BASE_DIR, 'logs', 'error.log'),
             'formatter': 'verbose',
         },
+        'mail_admins': {
+            'level': 'ERROR',
+            'filters': ['require_debug_false'],
+            'class': 'django.utils.log.AdminEmailHandler',
+            'include_html': True,
+        }
     },
     'loggers': {
-        'security': {
-            'handlers': ['security_file'],
+        'django': {
+            'handlers': ['django_file'],
             'level': 'INFO',
-            'propagate': True,
+            'propagate': False,
+        },
+        'django.server': {
+            'handlers': ['django_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.security': {
+            'handlers': ['security_file', 'mail_admins'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['mail_admins', 'error_file'],
+            'level': 'ERROR',
+            'propagate': False,
+        },
+        'security': {
+            'handlers': ['security_file', 'console'],
+            'level': 'INFO',
+            'propagate': False,
         },
         'auth': {
-            'handlers': ['auth_file'],
+            'handlers': ['auth_file', 'console'],
             'level': 'INFO',
-            'propagate': True,
+            'propagate': False,
         },
-        'django': {
-            'handlers': ['error_file'],
-            'level': 'ERROR',
-            'propagate': True,
-        },
+        'app': {
+            'handlers': ['console', 'error_file'],
+            'level': 'INFO',
+            'propagate': False,
+        }
     },
 }

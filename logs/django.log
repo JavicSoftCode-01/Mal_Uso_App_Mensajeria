@@ -1,0 +1,16 @@
+[INFO] 2025-09-25 11:45:06,528 - Watching for file changes with StatReloader
+[INFO] 2025-09-25 11:45:51,987 - C:\Users\JavicSoftCode-01\PycharmProjects\Mal_Uso_App_Mensajeria\Mal_Uso_App_Mensajeria\settings.py changed, reloading.
+[INFO] 2025-09-25 11:45:53,278 - Watching for file changes with StatReloader
+[INFO] 2025-09-25 11:45:58,455 - "GET / HTTP/1.1" 200 14364
+[INFO] 2025-09-25 11:46:12,150 - "GET /chat/2/ HTTP/1.1" 200 15529
+[INFO] 2025-09-25 11:46:15,132 - "POST /chat/2/ HTTP/1.1" 200 15975
+[INFO] 2025-09-25 11:46:17,312 - "GET /chat/2/ HTTP/1.1" 200 15975
+[INFO] 2025-09-25 11:46:28,013 - "GET /logout/ HTTP/1.1" 302 0
+[INFO] 2025-09-25 11:46:28,030 - "GET /login/ HTTP/1.1" 200 9044
+[INFO] 2025-09-25 11:46:31,579 - "POST /login/ HTTP/1.1" 302 0
+[INFO] 2025-09-25 11:46:31,627 - "GET / HTTP/1.1" 200 16104
+[INFO] 2025-09-25 11:47:03,145 - "GET /chat/1/ HTTP/1.1" 200 17419
+[INFO] 2025-09-25 11:47:13,817 - "GET /logout/ HTTP/1.1" 302 0
+[INFO] 2025-09-25 11:47:13,826 - "GET /login/ HTTP/1.1" 200 9044
+[INFO] 2025-09-25 11:47:17,937 - "POST /login/ HTTP/1.1" 200 9204
+[INFO] 2025-09-25 11:47:31,681 - "POST /login/ HTTP/1.1" 200 9204
