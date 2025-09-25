@@ -9,31 +9,142 @@
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
+        :root {
+            --ios-primary: #007AFF;
+            --ios-background: #F2F2F7;
+            --ios-secondary: #8E8E93;
+            --ios-surface: #FFFFFF;
+            --ios-text: #1C1C1E;
+        }
+        
         body {
-            background-color: #f0f2f5;
+            background-color: var(--ios-background);
+            color: var(--ios-text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
+        
         .navbar {
-            box-shadow: 0 2px 4px rgba(0,0,0,.1);
+            background: rgba(255, 255, 255, 0.95) !important;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            box-shadow: none;
+            padding: 0.5rem 0;
         }
+        
         .navbar-brand {
-            font-size: 1.5rem;
+            font-size: 1.2rem;
             font-weight: 600;
+            color: var(--ios-text) !important;
         }
+        
         .nav-link {
-            position: relative;
-            padding: 0.5rem 1rem;
+            color: var(--ios-primary) !important;
+            font-weight: 500;
+            padding: 0.7rem 1rem;
+            border-radius: 10px;
+            transition: all 0.2s ease;
         }
+        
+        .nav-link:hover {
+            background-color: rgba(0,122,255,0.1);
+        }
+        
         .notification-badge {
             position: absolute;
             top: 0;
             right: 0;
-            padding: 0.25rem 0.5rem;
-            font-size: 0.75rem;
-            line-height: 1;
-            border-radius: 0.75rem;
-            background-color: #dc3545;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 6px;
+            font-size: 12px;
+            font-weight: 600;
+            line-height: 20px;
+            text-align: center;
+            border-radius: 10px;
+            background-color: #FF3B30;
             color: white;
             transform: translate(50%, -50%);
+        }
+        
+        .notifications-menu {
+            position: absolute;
+            top: 100%;
+            right: 0;
+            width: 320px;
+            background: var(--ios-surface);
+            border-radius: 14px;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.15);
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(10px);
+            transition: all 0.2s ease;
+            z-index: 1000;
+            overflow: hidden;
+        }
+        
+        .notifications-menu.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+        
+        .notifications-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(0,0,0,0.1);
+            font-weight: 600;
+            font-size: 17px;
+        }
+        
+        .notification-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: var(--ios-text);
+        }
+        
+        .notification-item:hover {
+            background-color: rgba(0,0,0,0.02);
+        }
+        
+        .notification-item.unread {
+            background-color: rgba(0,122,255,0.05);
+        }
+        
+        .notification-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            background: var(--ios-primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            color: white;
+        }
+        
+        .notification-content {
+            flex: 1;
+        }
+        
+        .notification-title {
+            font-size: 15px;
+            font-weight: 500;
+            margin-bottom: 4px;
+        }
+        
+        .notification-text {
+            font-size: 14px;
+            color: var(--ios-secondary);
+            margin-bottom: 0;
+        }
+        
+        .notification-time {
+            font-size: 12px;
+            color: var(--ios-secondary);
         }
     </style>
 </head>
@@ -48,16 +159,11 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarContent">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'inbox' %}">
                             <i class="fas fa-inbox me-1"></i>
                             Chats
-                            {% with unread_count=request.user.received_messages.filter.count %}
-                                {% if unread_count > 0 %}
-                                    <span class="notification-badge">{{ unread_count }}</span>
-                                {% endif %}
-                            {% endwith %}
                         </a>
                     </li>
                     <li class="nav-item">
@@ -67,8 +173,46 @@
                         </a>
                     </li>
 
+                    <li class="nav-item position-relative">
+                        <a class="nav-link" href="#" id="notificationsToggle">
+                            <i class="fas fa-bell"></i>
+                            {% with unread_count=request.user.received_messages.filter.count %}
+                                {% if unread_count > 0 %}
+                                    <span class="notification-badge">{{ unread_count }}</span>
+                                {% endif %}
+                            {% endwith %}
+                        </a>
+                        <div class="notifications-menu" id="notificationsMenu">
+                            <div class="notifications-header">
+                                Notificaciones
+                            </div>
+                            {% with recent_messages=request.user.received_messages.all|slice:":5" %}
+                                {% if recent_messages %}
+                                    {% for message in recent_messages %}
+                                        <a href="{% url 'chat' user_id=message.sender.id %}" class="notification-item {% if not message.is_read %}unread{% endif %}">
+                                            <div class="notification-avatar">
+                                                <i class="fas fa-user"></i>
+                                            </div>
+                                            <div class="notification-content">
+                                                <div class="notification-title">{{ message.sender.username }}</div>
+                                                <p class="notification-text">{{ message.content|truncatechars:50 }}</p>
+                                            </div>
+                                            <div class="notification-time">
+                                                {{ message.created_at|timesince }}
+                                            </div>
+                                        </a>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="notification-item">
+                                        <p class="notification-text text-center w-100">No hay notificaciones nuevas</p>
+                                    </div>
+                                {% endif %}
+                            {% endwith %}
+                        </div>
+                    </li>
+
                     <li class="nav-item">
-                        <a class="nav-link" href="{% url 'logout' %}">
+                        <a class="nav-link" href="#">
                             <i class="fas fa-user me-1"></i>
                             {{user.username}}
                         </a>
@@ -102,5 +246,82 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const notificationsToggle = document.getElementById('notificationsToggle');
+            const notificationsMenu = document.getElementById('notificationsMenu');
+            
+            // Función para actualizar el contador de notificaciones
+            function updateNotificationCount() {
+                const badge = notificationsToggle.querySelector('.notification-badge');
+                const unreadItems = document.querySelectorAll('.notification-item.unread').length;
+                
+                if (unreadItems > 0) {
+                    if (badge) {
+                        badge.textContent = unreadItems;
+                    } else {
+                        const newBadge = document.createElement('span');
+                        newBadge.className = 'notification-badge';
+                        newBadge.textContent = unreadItems;
+                        notificationsToggle.appendChild(newBadge);
+                    }
+                } else if (badge) {
+                    badge.remove();
+                }
+            }
+            
+            // Función para cerrar el menú de notificaciones
+            function closeNotificationsMenu(event) {
+                if (!notificationsMenu.contains(event.target) && !notificationsToggle.contains(event.target)) {
+                    notificationsMenu.classList.remove('show');
+                    document.removeEventListener('click', closeNotificationsMenu);
+                }
+            }
+            
+            // Toggle del menú de notificaciones
+            notificationsToggle.addEventListener('click', function(event) {
+                event.preventDefault();
+                event.stopPropagation();
+                
+                const isVisible = notificationsMenu.classList.contains('show');
+                
+                if (!isVisible) {
+                    notificationsMenu.classList.add('show');
+                    setTimeout(() => {
+                        document.addEventListener('click', closeNotificationsMenu);
+                    }, 0);
+                } else {
+                    notificationsMenu.classList.remove('show');
+                    document.removeEventListener('click', closeNotificationsMenu);
+                }
+            });
+
+            // Marcar notificación como leída al hacer clic
+            document.querySelectorAll('.notification-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    if (this.classList.contains('unread')) {
+                        this.classList.remove('unread');
+                        updateNotificationCount();
+                    }
+                });
+            });
+
+            // Animación suave al mostrar notificaciones nuevas
+            const notificationItems = document.querySelectorAll('.notification-item.unread');
+            notificationItems.forEach((item, index) => {
+                item.style.opacity = '0';
+                item.style.transform = 'translateY(10px)';
+                setTimeout(() => {
+                    item.style.transition = 'all 0.3s ease';
+                    item.style.opacity = '1';
+                    item.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+
+            // Actualizar contador inicial
+            updateNotificationCount();
+        });
+    </script>
 </body>
 </html>
